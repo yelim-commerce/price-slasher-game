@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>가격 파괴자 — 30초 게임하고 할인쿠폰 받기</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--yellow:#FFD400;--ink:#1A1A1A;--pink:#FF3E8A;--paper:#FFFDF5;--mint:#22C58A;--muted:#6B6B6B;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Noto Sans KR',system-ui,sans-serif;background:var(--yellow);color:var(--ink);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+    background-image:radial-gradient(var(--ink) 1.2px, transparent 1.2px);background-size:22px 22px;}
+  .app{width:100%;max-width:420px;background:var(--paper);border:3px solid var(--ink);box-shadow:8px 8px 0 var(--ink);overflow:hidden}
+  .screen{display:none;padding:28px 24px}
+  .screen.on{display:block}
+  h1,h2{font-family:'Black Han Sans','Noto Sans KR',sans-serif;font-weight:400;line-height:1.05}
+  h1{font-size:44px} h2{font-size:34px}
+  .sub{margin-top:14px;font-size:15px;line-height:1.6;color:var(--muted)}
+  .btn{display:block;width:100%;margin-top:22px;padding:16px;font:inherit;font-weight:700;font-size:17px;background:var(--ink);color:var(--yellow);border:3px solid var(--ink);cursor:pointer;transition:transform .08s}
+  .btn:active{transform:translate(2px,2px)}
+  .btn:focus-visible{outline:3px solid var(--pink);outline-offset:3px}
+  .btn.pink{background:var(--pink);color:#fff}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .rules{margin-top:18px;border:3px solid var(--ink);padding:14px 16px;font-size:14px;line-height:1.7;background:#fff}
+  .rules b{display:inline-block;min-width:70px}
+  .demo{margin-top:16px;border:3px solid var(--ink);background:#fff;height:90px;position:relative;overflow:hidden}
+  .demo .t{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:'Black Han Sans',sans-serif;font-size:22px;padding:6px 14px;background:var(--yellow);border:3px solid var(--ink);animation:wob 1.2s ease-in-out infinite alternate}
+  .demo .sl{position:absolute;left:10%;top:70%;width:80%;height:4px;background:var(--pink);transform:rotate(-25deg);transform-origin:left;animation:slash 1.2s ease-in-out infinite}
+  @keyframes wob{from{transform:translate(-50%,-50%) rotate(-6deg)}to{transform:translate(-50%,-50%) rotate(6deg)}}
+  @keyframes slash{0%,40%{width:0;opacity:0}60%{width:80%;opacity:1}100%{width:80%;opacity:0}}
+  /* game */
+  #s-game{padding:18px 16px 16px}
+  .hud{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:10px}
+  .hud .n{font-family:'Black Han Sans',sans-serif;font-size:36px;line-height:1}
+  .hud small{display:block;font-size:12px;color:var(--muted)}
+  .bar{height:10px;border:3px solid var(--ink);background:#fff;margin-bottom:10px}
+  .bar i{display:block;height:100%;background:var(--pink);width:100%;transition:width .25s linear}
+  canvas{display:block;width:100%;border:3px solid var(--ink);background:#fff;touch-action:none;cursor:crosshair}
+  .flash{animation:flash .25s}
+  @keyframes flash{0%{background:#FFB3C9}100%{background:#fff}}
+  /* result */
+  .retry{display:block;text-align:right;font-size:12px;color:var(--muted);text-decoration:underline;margin:-10px 0 18px}
+  .stamp{display:inline-block;padding:6px 14px;border:3px solid var(--ink);font-weight:700;font-size:14px;margin-bottom:14px;background:#fff}
+  .stamp.win{background:var(--mint);color:#fff}
+  .big{font-family:'Black Han Sans',sans-serif;font-size:88px;line-height:1;color:var(--pink);margin:8px 0 4px}
+  .big small{font-size:34px;color:var(--ink)}
+  .upgrade{margin-top:14px;border:3px dashed var(--pink);padding:12px 14px;font-size:14px;line-height:1.6;background:#FFF0F6}
+  /* form */
+  label{display:block;font-weight:700;font-size:14px;margin-top:18px}
+  input[type=email]{width:100%;margin-top:6px;padding:14px;font:inherit;font-size:16px;border:3px solid var(--ink);background:#fff}
+  input[type=email]:focus{outline:3px solid var(--pink);outline-offset:2px}
+  .err{color:#D6003C;font-size:13px;margin-top:6px;min-height:18px}
+  .agree{display:flex;gap:10px;align-items:flex-start;margin-top:18px;font-size:13px;line-height:1.6;cursor:pointer}
+  .agree input{width:20px;height:20px;flex:none;margin-top:2px;accent-color:var(--pink)}
+  details{margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6}
+  details summary{cursor:pointer;font-weight:700;color:var(--ink)}
+  /* coupon */
+  .coupon{margin-top:18px;border:3px solid var(--ink);background:#fff}
+  .coupon .top{background:var(--ink);color:var(--yellow);padding:12px 16px;font-family:'Black Han Sans',sans-serif;font-size:26px}
+  .coupon .code{padding:18px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .coupon .code b{font-size:22px;letter-spacing:2px;font-family:ui-monospace,monospace}
+  .coupon .code button{font:inherit;font-weight:700;font-size:13px;padding:8px 12px;border:3px solid var(--ink);background:var(--yellow);cursor:pointer}
+  .coupon .foot{border-top:3px dashed var(--ink);padding:10px 16px;font-size:12px;color:var(--muted)}
+  .center{text-align:center}
+  @media (prefers-reduced-motion:reduce){.demo *{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <section class="screen on" id="s-intro">
+    <h1>가격<br>파괴자</h1>
+    <p class="sub">하늘로 튀어오르는 가격표를 손가락으로 <strong>베어버리세요.</strong> 30초 안에 20장을 베면 <strong>20% 쿠폰</strong>, 못 베도 <strong>10% 쿠폰</strong>을 드려요.</p>
+    <div class="demo"><div class="t">₩89,000</div><div class="sl"></div></div>
+    <div class="rules">
+      <div><b>🏷️ 가격표</b> 베면 +1 · 한 번에 3장 이상 베면 콤보 +2</div>
+      <div><b>💣 환불폭탄</b> 베면 −3</div>
+      <div><b>⏱️ 30초</b> 목표 20장</div>
+    </div>
+    <button class="btn" onclick="startGame()">게임 시작</button>
+  </section>
+
+  <section class="screen" id="s-game">
+    <div class="hud">
+      <div><small>벤 가격표</small><div class="n" id="score">0</div></div>
+      <div style="text-align:center"><small>목표</small><div class="n">20</div></div>
+      <div style="text-align:right"><small>남은 시간</small><div class="n" id="time">30</div></div>
+    </div>
+    <div class="bar"><i id="bar"></i></div>
+    <canvas id="cv"></canvas>
+  </section>
+
+  <section class="screen center" id="s-result">
+    <a href="#" class="retry" onclick="event.preventDefault(); if(confirm('결과가 초기화돼요. 다시 도전할까요?')) startGame();">다시 도전</a>
+    <div class="stamp" id="stamp"></div>
+    <h2 id="r-title"></h2>
+    <div class="big"><span id="r-pct"></span><small>%</small></div>
+    <p class="sub" id="r-sub"></p>
+    <div class="upgrade" id="upgrade" style="display:none">이메일을 남기면 쿠폰이 <strong>20%로 업그레이드</strong>돼요.</div>
+    <button class="btn pink" onclick="show('s-form')">쿠폰 받기</button>
+  </section>
+
+  <section class="screen" id="s-form">
+    <h2>쿠폰 받을<br>이메일을 알려주세요</h2>
+    <label for="email">이메일</label>
+    <input type="email" id="email" placeholder="name@example.com" autocomplete="email" oninput="validate()">
+    <div class="err" id="err"></div>
+    <label class="agree"><input type="checkbox" id="agree" onchange="validate()"><span>[필수] 개인정보 수집·이용에 동의합니다. 이메일은 쿠폰 발송과 프로모션 안내에만 사용되며, 동의 철회 시 즉시 삭제됩니다.</span></label>
+    <details>
+      <summary>수집 항목 및 보유 기간 보기</summary>
+      수집 항목: 이메일 주소<br>이용 목적: 할인쿠폰 발송, 신규 상품·프로모션 안내<br>보유 기간: 동의 철회 또는 마지막 이용일로부터 1년<br>동의를 거부할 수 있으며, 거부 시 쿠폰 발급이 제한됩니다.
+    </details>
+    <button class="btn pink" id="submit" onclick="issue()" disabled>20% 쿠폰 발급받기</button>
+  </section>
+
+  <section class="screen" id="s-coupon">
+    <h2>쿠폰이<br>발급됐어요</h2>
+    <p class="sub" id="c-sub"></p>
+    <div class="coupon">
+      <div class="top">20% 할인쿠폰</div>
+      <div class="code"><b id="c-code"></b><button onclick="copyCode()" id="copy">복사</button></div>
+      <div class="foot">결제 시 쿠폰 코드를 입력하세요 · 발급일로부터 7일간 유효</div>
+    </div>
+    <button class="btn" onclick="location.reload()">처음으로</button>
+  </section>
+
+</div>
+
+<script>
+const TIME = 30, GOAL = 20;
+const $ = id => document.getElementById(id);
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on')); $(id).classList.add('on'); }
+
+// ---------- canvas setup ----------
+const cv = $('cv'), ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = cv.clientWidth || 370; H = Math.round(W * 1.25);
+  cv.style.height = H + 'px';
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', () => { if ($('s-game').classList.contains('on')) resize(); });
+
+// ---------- game state ----------
+const EMO = ['👟','👜','🎧','💄','⌚','🧴','🕶️','🧥','📱','🎮'];
+const PRICES = ['₩39,000','₩89,000','₩129,000','₩59,900','₩199,000','₩24,900'];
+let items = [], halves = [], pops = [], trail = [];
+let score = 0, left = TIME, cleared = false, running = false;
+let timer, spawner, raf, last = 0, strokeHits = 0, slicing = false;
+const G = 900; // px/s²
+
+function startGame(){
+  show('s-game'); resize();
+  items = []; halves = []; pops = []; trail = [];
+  score = 0; left = TIME; cleared = false; running = true;
+  $('score').textContent = 0; $('time').textContent = TIME; $('bar').style.width = '100%';
+  clearInterval(timer); clearInterval(spawner); cancelAnimationFrame(raf);
+  timer = setInterval(tick, 1000);
+  spawnWave(); spawner = setInterval(spawnWave, 700);
+  last = performance.now(); raf = requestAnimationFrame(loop);
+}
+function tick(){
+  left--; $('time').textContent = left; $('bar').style.width = (left/TIME*100)+'%';
+  if (left <= 0) endGame();
+}
+function spawnWave(){
+  const n = 1 + Math.floor(Math.random()*3);
+  for (let i=0;i<n;i++) setTimeout(spawnOne, i*120);
+}
+function spawnOne(){
+  const bomb = Math.random() < 0.22;
+  const x = W*0.15 + Math.random()*W*0.7;
+  items.push({
+    x, y: H + 40, vx: (W/2 - x) * (0.6 + Math.random()*0.8) + (Math.random()-0.5)*120,
+    vy: -(H*1.35 + Math.random()*H*0.45), r: 30, bomb,
+    emoji: EMO[Math.floor(Math.random()*EMO.length)],
+    price: PRICES[Math.floor(Math.random()*PRICES.length)],
+    rot: (Math.random()-0.5)*0.6, vr: (Math.random()-0.5)*4
+  });
+}
+
+// ---------- input ----------
+function pt(e){ const b = cv.getBoundingClientRect(); return {x:e.clientX-b.left, y:e.clientY-b.top, t:performance.now()}; }
+cv.addEventListener('pointerdown', e => { if(!running) return; slicing = true; strokeHits = 0; trail = [pt(e)]; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => {
+  if (!slicing || !running) return;
+  const p = pt(e), q = trail[trail.length-1];
+  trail.push(p); if (trail.length > 14) trail.shift();
+  if (q) checkSlice(q, p);
+});
+const endStroke = () => { if (slicing && strokeHits >= 3){ score += 2; pop(trail[trail.length-1].x, trail[trail.length-1].y-30, `${strokeHits}콤보 +2`, '#FF3E8A', 26); $('score').textContent = score; } slicing = false; strokeHits = 0; };
+cv.addEventListener('pointerup', endStroke); cv.addEventListener('pointercancel', endStroke);
+
+function segDist(ax,ay,bx,by,px,py){
+  const dx=bx-ax, dy=by-ay, l2=dx*dx+dy*dy;
+  let t = l2 ? ((px-ax)*dx+(py-ay)*dy)/l2 : 0; t = Math.max(0,Math.min(1,t));
+  const cx=ax+t*dx, cy=ay+t*dy; return Math.hypot(px-cx,py-cy);
+}
+function checkSlice(a,b){
+  if (Math.hypot(b.x-a.x,b.y-a.y) < 4) return; // too slow to cut
+  const ang = Math.atan2(b.y-a.y, b.x-a.x);
+  for (let i=items.length-1;i>=0;i--){
+    const it = items[i];
+    if (segDist(a.x,a.y,b.x,b.y,it.x,it.y) > it.r) continue;
+    items.splice(i,1);
+    if (it.bomb){
+      score = Math.max(0, score-3); pop(it.x,it.y,'−3 환불!','#D6003C',28);
+      cv.classList.remove('flash'); void cv.offsetWidth; cv.classList.add('flash');
+      strokeHits = 0;
+    } else {
+      score++; strokeHits++; pop(it.x,it.y,'+1','#1A1A1A',24);
+      const nx = -Math.sin(ang), ny = Math.cos(ang); // normal to cut
+      for (const s of [-1,1]) halves.push({x:it.x, y:it.y, vx: it.vx*0.4 + nx*s*160, vy: it.vy*0.2 - 120, rot: it.rot, vr: s*6, side:s, ang, emoji: it.emoji, price: it.price, life:1});
+    }
+    $('score').textContent = score;
+  }
+}
+function pop(x,y,text,color,size){ pops.push({x,y,text,color,size,life:1}); }
+
+// ---------- loop ----------
+function loop(now){
+  const dt = Math.min((now-last)/1000, 0.05); last = now;
+  ctx.clearRect(0,0,W,H);
+  // items
+  for (let i=items.length-1;i>=0;i--){
+    const it = items[i]; it.vy += G*dt; it.x += it.vx*dt; it.y += it.vy*dt; it.rot += it.vr*dt;
+    if (it.y > H + 80 && it.vy > 0) { items.splice(i,1); continue; }
+    drawTag(it.x,it.y,it.rot,it,null);
+  }
+  // halves
+  for (let i=halves.length-1;i>=0;i--){
+    const h = halves[i]; h.vy += G*dt; h.x += h.vx*dt; h.y += h.vy*dt; h.rot += h.vr*dt; h.life -= dt*0.9;
+    if (h.life <= 0 || h.y > H+80) { halves.splice(i,1); continue; }
+    ctx.globalAlpha = Math.min(1,h.life*1.5); drawTag(h.x,h.y,h.rot,h,h); ctx.globalAlpha = 1;
+  }
+  // trail
+  if (trail.length > 1){
+    const n = performance.now();
+    while (trail.length && n - trail[0].t > 160) trail.shift();
+    ctx.lineCap='round'; ctx.lineJoin='round';
+    for (let i=1;i<trail.length;i++){
+      ctx.strokeStyle='#FF3E8A'; ctx.lineWidth = 2 + 9*(i/trail.length);
+      ctx.beginPath(); ctx.moveTo(trail[i-1].x,trail[i-1].y); ctx.lineTo(trail[i].x,trail[i].y); ctx.stroke();
+    }
+  }
+  // pops
+  ctx.textAlign='center'; ctx.font = "bold 24px 'Black Han Sans','Noto Sans KR',sans-serif";
+  for (let i=pops.length-1;i>=0;i--){
+    const p = pops[i]; p.life -= dt*1.6; p.y -= 60*dt;
+    if (p.life<=0){ pops.splice(i,1); continue; }
+    ctx.globalAlpha = Math.max(0,p.life); ctx.fillStyle = p.color; ctx.font = `${p.size}px 'Black Han Sans','Noto Sans KR',sans-serif`; ctx.fillText(p.text,p.x,p.y); ctx.globalAlpha = 1;
+  }
+  if (running) raf = requestAnimationFrame(loop);
+}
+
+function drawTag(x,y,rot,it,half){
+  ctx.save(); ctx.translate(x,y); ctx.rotate(rot);
+  if (half){ // clip to one side of the cut line
+    ctx.rotate(half.ang - rot); ctx.beginPath(); ctx.rect(-80, half.side<0 ? -80 : 0, 160, 80); ctx.clip(); ctx.rotate(rot - half.ang);
+  }
+  const w = 84, h = 44;
+  ctx.lineWidth = 3; ctx.strokeStyle = '#1A1A1A';
+  if (it.bomb){
+    ctx.fillStyle = '#1A1A1A'; ctx.beginPath(); ctx.arc(0,0,26,0,Math.PI*2); ctx.fill();
+    ctx.font = "30px sans-serif"; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('💣',0,2);
+    ctx.fillStyle='#fff'; ctx.font = "bold 10px 'Noto Sans KR',sans-serif"; ctx.fillText('환불',0,20);
+  } else {
+    ctx.fillStyle = '#FFD400';
+    ctx.beginPath(); ctx.moveTo(-w/2+12,-h/2); ctx.lineTo(w/2,-h/2); ctx.lineTo(w/2,h/2); ctx.lineTo(-w/2+12,h/2); ctx.lineTo(-w/2,0); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-w/2+13,0,4,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font = "22px sans-serif"; ctx.fillStyle='#1A1A1A'; ctx.fillText(it.emoji,-14,1);
+    ctx.font = "bold 11px 'Noto Sans KR',sans-serif"; ctx.fillText(it.price,20,1);
+  }
+  ctx.restore();
+}
+
+function endGame(){
+  running = false; clearInterval(timer); clearInterval(spawner); cancelAnimationFrame(raf); slicing = false;
+  cleared = score >= GOAL;
+  $('stamp').textContent = cleared ? '미션 성공' : '아쉽게 실패';
+  $('stamp').className = 'stamp' + (cleared ? ' win' : '');
+  $('r-title').textContent = cleared ? `가격표 ${score}장 파괴!` : `가격표 ${score}장 파괴`;
+  $('r-pct').textContent = cleared ? 20 : 10;
+  $('r-sub').textContent = cleared ? '20% 할인쿠폰이 준비됐어요.' : '10% 할인쿠폰이 준비됐어요.';
+  $('upgrade').style.display = cleared ? 'none' : 'block';
+  show('s-result');
+}
+
+// ---------- form / coupon ----------
+function validate(){
+  const v = $('email').value.trim();
+  const ok = v.includes('@') && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  $('err').textContent = v && !v.includes('@') ? '이메일에는 @가 포함되어야 해요.' : (v && !ok ? '올바른 이메일 형식이 아니에요.' : '');
+  $('submit').disabled = !(ok && $('agree').checked);
+  return ok;
+}
+const WEBHOOK = 'https://hook.eu1.make.com/iv6p47wuoc7rqnh1fb8884y0n5l6buuf';
+
+// form-urlencoded 로 보내 CORS preflight 를 피하고, 실패 시 sendBeacon 으로 재시도
+async function sendLead(lead){
+  const body = new URLSearchParams(lead).toString();
+  try {
+    const res = await fetch(WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      body, keepalive: true
+    });
+    if (res.ok) return true;
+  } catch (e) { /* CORS / 네트워크 오류 → 아래 fallback */ }
+  try {
+    return !!navigator.sendBeacon?.(WEBHOOK, new Blob([body], {type:'application/x-www-form-urlencoded;charset=UTF-8'}));
+  } catch (e) { return false; }
+}
+
+async function issue(){
+  if (!validate() || !$('agree').checked) return;
+  const email = $('email').value.trim();
+  const code = (cleared ? 'WIN20-' : 'MAIL20-') + Math.random().toString(36).slice(2,6).toUpperCase();
+  const btn = $('submit'), label = btn.textContent;
+  btn.disabled = true; btn.textContent = '발급 중...'; $('err').textContent = '';
+
+  const now = new Date();
+  const kst = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'medium' })
+    .format(now).split(' '); // ['YYYY-MM-DD', 'HH:MM:SS']
+
+  const ok = await sendLead({
+    date: kst[0],
+    time: kst[1],
+    email,
+    code,
+    score: String(score),
+    cleared: String(cleared),
+    discount: String(cleared ? 20 : 10),
+    agreedAt: now.toISOString(),
+    source: 'price-slasher-game'
+  });
+  if (!ok){
+    $('err').textContent = '쿠폰 발급에 실패했어요. 잠시 후 다시 시도해 주세요.';
+    btn.disabled = false; btn.textContent = label;
+    return;
+  }
+
+  $('c-code').textContent = code;
+  $('c-sub').textContent = `${email} 로 쿠폰을 보냈어요.` + (cleared ? '' : ' 이메일 등록으로 10% → 20%로 업그레이드됐어요.');
+  btn.textContent = label;
+  show('s-coupon');
+}
+function copyCode(){
+  navigator.clipboard?.writeText($('c-code').textContent).then(()=>{ $('copy').textContent='복사됨'; setTimeout(()=>$('copy').textContent='복사',1500); });
+}
+</script>
+</body>
+</html>
